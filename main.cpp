@@ -5,6 +5,7 @@
 #include <opencv2/opencv.hpp>
 
 #include <../AAMlib/icaam.h>
+#include <../AAMlib/robustaam.h>
 #include <../AAMlib/trainingdata.h>
 
 #define WINDOW_NAME "AAM-Example"
@@ -12,10 +13,12 @@
 using namespace std;
 using namespace cv;
 
-ICAAM aam;
+//ICAAM aam;
+RobustAAM aam;
 
 //Parameters for the fitting
-int numParameters = 15;          //Number of used shape parameters
+int numShapeParameters = 11;          //Number of used shape parameters
+int numAppParameters = 20;          //Number of used appearance parameters
 float fitThreshold = 0.05f;      //Termination condition
 
 vector<string> descriptions;
@@ -99,13 +102,11 @@ int main()
 
     //Train aam with Training Data
     //optional: Set number of used Shape/Appearance Parameters
-    aam.setNumShapeParameters(numParameters);
-    aam.setNumAppParameters(numParameters);
+    aam.setNumShapeParameters(numShapeParameters);
+    aam.setNumAppParameters(numAppParameters);
     aam.train();
 
     namedWindow(WINDOW_NAME, WINDOW_AUTOSIZE);
-
-    Mat fittingImage = imread(filePath_test+"8.jpg");
 
     VideoCapture cam;
     cam.open(filePath_test+"video.webm");
@@ -115,6 +116,7 @@ int main()
         return 0;
     }
 
+    //Load image and initialize the fitting shape
     cam.read(fittingImage);
     aam.setFittingImage(fittingImage);   //Converts image to right format
     aam.resetShape();    //Uses Viola-Jones Face Detection to initialize shape
@@ -122,14 +124,13 @@ int main()
     //Terminate until fitting parameters change under predefined threshold
     // or 100 update steps have been executed
     while(cam.read(fittingImage)) {
-        //Load image and initialize the fitting shape
         aam.setFittingImage(fittingImage);   //Converts image to right format
 
         //Initialize with value > fitThreshold to enter the fitting loop
         float fittingChange = 20.0f;
         int steps = 0;
 
-        while(fittingChange > fitThreshold && steps<5) {
+        while(fittingChange > fitThreshold) {
             fittingChange = aam.fit();   //Execute single update step
             steps++;
             cout<<"Step "<<steps<<" || Error per pixel: "<<aam.getErrorPerPixel()<<" || Parameter change: "<<fittingChange<<endl;
@@ -141,21 +142,6 @@ int main()
         imshow(WINDOW_NAME, image);
         waitKey(1);
     }
-
-    //Draw the final triangulation and display the result
-    Mat image = fittingImage.clone();
-    Mat p = aam.getFittingShape();
-
-    image = drawShape(image, p);
-    imshow(WINDOW_NAME, image);
-
-    //Save the result
-    TrainingData tr;
-    tr.setImage(fittingImage);
-    tr.setPoints(p);
-    tr.setGroups(groups);
-    tr.setDescriptions(descriptions);
-    tr.saveDataToFile("out.xml");
 
     waitKey(0);
     return 0;
