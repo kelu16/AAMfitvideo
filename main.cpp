@@ -117,6 +117,8 @@ int main()
     }
 
     //Load image and initialize the fitting shape
+    Mat fittingImage;
+    
     cam.read(fittingImage);
     aam.setFittingImage(fittingImage);   //Converts image to right format
     aam.resetShape();    //Uses Viola-Jones Face Detection to initialize shape
